@@ -6,28 +6,34 @@
 package context
 
 import (
+	"fmt"
 	"regexp"
 	"sync"
+	"time"
 
 	"github.com/omec-project/ausf/logger"
 	"github.com/omec-project/openapi/models"
 )
 
 type AUSFContext struct {
-	suciSupiMap  sync.Map
-	UePool       sync.Map
-	NfId         string
-	GroupID      string
-	SBIPort      int
-	RegisterIPv4 string
-	BindingIPv4  string
-	Url          string
-	UriScheme    models.UriScheme
-	NrfUri       string
-	NfService    map[models.ServiceName]models.NfService
-	PlmnList     []models.PlmnId
-	UdmUeauUrl   string
-	snRegex      *regexp.Regexp
+	suciSupiMap              sync.Map
+	UePool                   sync.Map
+	NfId                     string
+	GroupID                  string
+	SBIPort                  int
+	RegisterIPv4             string
+	BindingIPv4              string
+	Url                      string
+	UriScheme                models.UriScheme
+	NrfUri                   string
+	NfService                map[models.ServiceName]models.NfService
+	PlmnList                 []models.PlmnId
+	UdmUeauUrl               string
+	snRegex                  *regexp.Regexp
+	EnableNrfCaching         bool
+	NrfCacheEvictionInterval time.Duration
+	EnableScaling            bool
+	NfStatusSubscriptions    sync.Map // map[NfInstanceID]models.NrfSubscriptionData.SubscriptionId
 }
 
 type AusfUeContext struct {
@@ -133,4 +139,8 @@ func GetSelf() *AUSFContext {
 
 func (a *AUSFContext) GetSelfID() string {
 	return a.NfId
+}
+
+func (context *AUSFContext) GetIPv4Uri() string {
+	return fmt.Sprintf("%s://%s:%d", context.UriScheme, context.RegisterIPv4, context.SBIPort)
 }

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -43,7 +44,7 @@ func InitAusfContext(context *AUSFContext) {
 	context.SBIPort = factory.AUSF_DEFAULT_PORT_INT                // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			context.RegisterIPv4 = sbi.RegisterIPv4
+			context.RegisterIPv4 = os.Getenv("POD_IP") //context.RegisterIPv4 = sbi.RegisterIPv4
 		}
 		if sbi.Port != 0 {
 			context.SBIPort = sbi.Port
@@ -76,6 +77,15 @@ func InitAusfContext(context *AUSFContext) {
 	// context.NfService
 	context.NfService = make(map[models.ServiceName]models.NfService)
 	AddNfServices(&context.NfService, &config, context)
+	context.EnableScaling = configuration.EnableScaling
+	context.EnableNrfCaching = configuration.EnableNrfCaching
+	if configuration.EnableNrfCaching {
+		if configuration.NrfCacheEvictionInterval == 0 {
+			context.NrfCacheEvictionInterval = time.Duration(900) // 15 mins
+		} else {
+			context.NrfCacheEvictionInterval = time.Duration(configuration.NrfCacheEvictionInterval)
+		}
+	}
 	fmt.Println("ausf context = ", context)
 }
 

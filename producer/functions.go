@@ -15,6 +15,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
+	"hash/fnv"
+	"sort"
 	"strconv"
 	"time"
 
@@ -271,20 +273,50 @@ func ConstructEapNoTypePkt(code radius.EapCode, pktID uint8) string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-func getUdmUrl(nrfUri string) string {
+func getUdmUrl(nrfUri string, id string) string {
 	udmUrl := "https://localhost:29503" // default
 	nfDiscoverParam := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
 		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NUDM_UEAU}),
 	}
-	res, err := consumer.SendSearchNFInstances(nrfUri, models.NfType_UDM, models.NfType_AUSF, nfDiscoverParam)
+	res, err := consumer.SendSearchNFInstances(nrfUri, models.NfType_UDM, models.NfType_AUSF, &nfDiscoverParam)
 	if err != nil {
-		logger.UeAuthPostLog.Errorln("[Search UDM UEAU] ", err.Error())
+		logger.UeAuthPostLog.Errorln("[Search UDM UEAU] ", err.Error(), id, nrfUri)
 	} else if len(res.NfInstances) > 0 {
-		udmInstance := res.NfInstances[0]
-		if len(udmInstance.Ipv4Addresses) > 0 && udmInstance.NfServices != nil {
-			ueauService := (*udmInstance.NfServices)[0]
-			ueauEndPoint := (*ueauService.IpEndPoints)[0]
-			udmUrl = string(ueauService.Scheme) + "://" + ueauEndPoint.Ipv4Address + ":" + strconv.Itoa(int(ueauEndPoint.Port))
+		// udmInstance := res.NfInstances[0]
+		// if len(udmInstance.Ipv4Addresses) > 0 && udmInstance.NfServices != nil {
+		// 	ueauService := (*udmInstance.NfServices)[0]
+		// 	ueauEndPoint := (*ueauService.IpEndPoints)[0]
+		// 	udmUrl = string(ueauService.Scheme) + "://" + ueauEndPoint.Ipv4Address + ":" + strconv.Itoa(int(ueauEndPoint.Port))
+		nfInstanceIds := make([]string, 0, len(res.NfInstances))
+		for _, profile := range res.NfInstances {
+			nfInstanceIds = append(nfInstanceIds, profile.NfInstanceId)
+		}
+		sort.Strings(nfInstanceIds)
+
+		nfInstanceIdIndexMap := make(map[string]int)
+		for index, value := range nfInstanceIds {
+			nfInstanceIdIndexMap[value] = index
+		}
+
+		nfInstanceIndex := 0
+		if ausf_context.GetSelf().EnableScaling == true {
+			h := fnv.New32a()
+			h.Write([]byte(id))
+			key := int(h.Sum32())
+			nfInstanceIndex = key % len(res.NfInstances)
+		}
+		for _, profile := range res.NfInstances {
+			if nfInstanceIndex != nfInstanceIdIndexMap[profile.NfInstanceId] {
+				continue
+			}
+			udmInstance := profile
+			if len(udmInstance.Ipv4Addresses) > 0 && udmInstance.NfServices != nil {
+				ueauService := (*udmInstance.NfServices)[0]
+				ueauEndPoint := (*ueauService.IpEndPoints)[0]
+				udmUrl = string(ueauService.Scheme) + "://" + ueauEndPoint.Ipv4Address + ":" + strconv.Itoa(int(ueauEndPoint.Port))
+				//logger.UeAuthPostLog.Infof("AUSF to UDM Mapping: UDM ID %s ue id %s index %d", profile.NfInstanceId, id, nfInstanceIndex)
+				break
+			}
 		}
 	} else {
 		logger.UeAuthPostLog.Errorln("[Search UDM UEAU] len(NfInstances) = 0")

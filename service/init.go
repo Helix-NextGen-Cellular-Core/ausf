@@ -16,11 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/omec-project/ausf/context"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
-
+	"github.com/omec-project/ausf/callback"
 	"github.com/omec-project/ausf/consumer"
+	"github.com/omec-project/ausf/context"
 	ausf_context "github.com/omec-project/ausf/context"
 	"github.com/omec-project/ausf/factory"
 	"github.com/omec-project/ausf/logger"
@@ -30,9 +28,12 @@ import (
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/omec-project/http2_util"
 	"github.com/omec-project/logger_util"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/path_util"
 	pathUtilLogger "github.com/omec-project/path_util/logger"
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 type AUSF struct{}
@@ -228,12 +229,15 @@ func (ausf *AUSF) Start() {
 
 	router := logger_util.NewGinWithLogrus(logger.GinLog)
 	ueauthentication.AddService(router)
-
+	callback.AddService(router)
 	ausf_context.Init()
 	self := ausf_context.GetSelf()
 	// Register to NRF
 	go ausf.registerNF()
-
+	if self.EnableNrfCaching {
+		initLog.Infof("Enable NRF caching feature for %d seconds", ausf_context.GetSelf().NrfCacheEvictionInterval)
+		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
+	}
 	ausfLogPath := util.AusfLogPath
 
 	addr := fmt.Sprintf("%s:%d", self.BindingIPv4, self.SBIPort)
@@ -325,6 +329,21 @@ func (ausf *AUSF) Terminate() {
 		logger.InitLog.Infof("Deregister from NRF successfully")
 	}
 
+	ausfSelf := ausf_context.GetSelf()
+	ausfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
+		if subscriptionId, ok := ausfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
+			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			if problemDetails != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+			} else if err != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Error[%+v]", err)
+			} else {
+				logger.InitLog.Infoln("[AUSF] Remove NF Subscription successful")
+			}
+		}
+		return true
+	})
 	logger.InitLog.Infof("AUSF terminated")
 }
 
