@@ -2,7 +2,7 @@ module github.com/omec-project/ausf
 
 go 1.16
 
-replace github.com/omec-project/nrf => /home/aether/codeRepos/nrf
+replace github.com/omec-project/nrf => ../nrf
 
 require (
 	github.com/antihax/optional v1.0.0
