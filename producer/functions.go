@@ -315,6 +315,7 @@ func getUdmUrl(nrfUri string, id string) string {
 				ueauEndPoint := (*ueauService.IpEndPoints)[0]
 				udmUrl = string(ueauService.Scheme) + "://" + ueauEndPoint.Ipv4Address + ":" + strconv.Itoa(int(ueauEndPoint.Port))
 				//logger.UeAuthPostLog.Infof("AUSF to UDM Mapping: UDM ID %s ue id %s index %d", profile.NfInstanceId, id, nfInstanceIndex)
+				fmt.Println("for Ue: ", id, " for targetNfType ", string(models.NfType_UDM), " NF is: ", udmInstance.Ipv4Addresses)
 				break
 			}
 		}
