@@ -275,6 +275,17 @@ func ConstructEapNoTypePkt(code radius.EapCode, pktID uint8) string {
 
 func getUdmUrl(nrfUri string, id string) string {
 	udmUrl := "https://localhost:29503" // default
+	Uenf, ok := ausf_context.GetSelf().UeNfProfile.Load(id)
+	if ok {
+		nf1 := Uenf.(models.NfProfile)
+		ueauService := (*nf1.NfServices)[0]
+		ueauEndPoint := (*ueauService.IpEndPoints)[0]
+		udmUrl = string(ueauService.Scheme) + "://" + ueauEndPoint.Ipv4Address + ":" + strconv.Itoa(int(ueauEndPoint.Port))
+
+		// logger.ConsumerLog.Warnln("for Ue: ", id, " found targetNfType ", string(models.NfType_UDR), " NF is: ", *nf1)
+		return udmUrl
+	}
+
 	nfDiscoverParam := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
 		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NUDM_UEAU}),
 	}
@@ -311,11 +322,12 @@ func getUdmUrl(nrfUri string, id string) string {
 			}
 			udmInstance := profile
 			if len(udmInstance.Ipv4Addresses) > 0 && udmInstance.NfServices != nil {
+				ausf_context.GetSelf().UeNfProfile.Store(id, profile)
 				ueauService := (*udmInstance.NfServices)[0]
 				ueauEndPoint := (*ueauService.IpEndPoints)[0]
 				udmUrl = string(ueauService.Scheme) + "://" + ueauEndPoint.Ipv4Address + ":" + strconv.Itoa(int(ueauEndPoint.Port))
 				//logger.UeAuthPostLog.Infof("AUSF to UDM Mapping: UDM ID %s ue id %s index %d", profile.NfInstanceId, id, nfInstanceIndex)
-				fmt.Println("for Ue: ", id, " for targetNfType ", string(models.NfType_UDM), " NF is: ", udmInstance.Ipv4Addresses)
+				logger.ConsumerLog.Warnln("for Ue: ", id, " for targetNfType ", string(models.NfType_UDM), " NF is: ", udmInstance.Ipv4Addresses)
 				break
 			}
 		}

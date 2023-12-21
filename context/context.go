@@ -34,6 +34,7 @@ type AUSFContext struct {
 	NrfCacheEvictionInterval time.Duration
 	EnableScaling            bool
 	NfStatusSubscriptions    sync.Map // map[NfInstanceID]models.NrfSubscriptionData.SubscriptionId
+	UeNfProfile              sync.Map // map[Supi]models.UeNfProfile
 }
 
 type AusfUeContext struct {

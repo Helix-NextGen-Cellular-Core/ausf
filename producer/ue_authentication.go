@@ -93,6 +93,9 @@ func UeAuthPostRequestProcedure(updateAuthenticationInfo models.AuthenticationIn
 	var authInfoReq models.AuthenticationInfoRequest
 
 	supiOrSuci := updateAuthenticationInfo.SupiOrSuci
+	// defer func(st int64) {
+	// 	logger.UeAuthPostLog.Warnln("ueID ", supiOrSuci, " UeAuthPostRequestProcedure took: ", (time.Now().UnixNano() - st))
+	// }(time.Now().UnixNano())
 
 	snName := updateAuthenticationInfo.ServingNetworkName
 	servingNetworkAuthorized := ausf_context.IsServingNetworkAuthorized(snName)
@@ -120,8 +123,18 @@ func UeAuthPostRequestProcedure(updateAuthenticationInfo models.AuthenticationIn
 		logger.UeAuthPostLog.Warningln("Rand: ", updateAuthenticationInfo.ResynchronizationInfo.Rand)
 		authInfoReq.ResynchronizationInfo = updateAuthenticationInfo.ResynchronizationInfo
 	}
+	// var udmUrl string
+	// if !ausf_context.CheckIfAusfUeContextExists(supiOrSuci) {
+	// 	udmUrl = getUdmUrl(self.NrfUri, supiOrSuci)
+	// } else {
+	// 	ausfCurrentContext := ausf_context.GetAusfUeContext(supiOrSuci)
+	// 	udmUrl = ausfCurrentContext.UdmUeauUrl
+	// }
 
+	// st1 := time.Now().UnixNano()
 	udmUrl := getUdmUrl(self.NrfUri, supiOrSuci)
+	// logger.UeAuthPostLog.Warnln("getUdmUrl took: ", (time.Now().UnixNano() - st1))
+	// st1 = time.Now().UnixNano()
 	client := createClientToUdmUeau(udmUrl)
 	authInfoResult, rsp, err := client.GenerateAuthDataApi.GenerateAuthData(context.Background(), supiOrSuci, authInfoReq)
 	if err != nil {
@@ -140,6 +153,7 @@ func UeAuthPostRequestProcedure(updateAuthenticationInfo models.AuthenticationIn
 			logger.UeAuthPostLog.Errorf("GenerateAuthDataApi response body cannot close: %+v", rspCloseErr)
 		}
 	}()
+	// logger.UeAuthPostLog.Warnln("GenerateAuthDataApi took: ", (time.Now().UnixNano() - st1))
 
 	ueid := authInfoResult.Supi
 	ausfUeContext := ausf_context.NewAusfUeContext(ueid)
