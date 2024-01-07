@@ -15,9 +15,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash"
-	"hash/fnv"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/antihax/optional"
@@ -311,10 +311,13 @@ func getUdmUrl(nrfUri string, id string) string {
 
 		nfInstanceIndex := 0
 		if ausf_context.GetSelf().EnableScaling == true {
-			h := fnv.New32a()
-			h.Write([]byte(id))
-			key := int(h.Sum32())
-			nfInstanceIndex = key % len(res.NfInstances)
+			// h := fnv.New32a()
+			// h.Write([]byte(id))
+			// key := int(h.Sum32())
+			// nfInstanceIndex = key % len(res.NfInstances)
+			parts := strings.Split(id, "-")
+			imsiNumber, _ := strconv.Atoi(parts[1])
+			nfInstanceIndex = imsiNumber % len(res.NfInstances)
 		}
 		for _, profile := range res.NfInstances {
 			if nfInstanceIndex != nfInstanceIdIndexMap[profile.NfInstanceId] {
@@ -327,7 +330,7 @@ func getUdmUrl(nrfUri string, id string) string {
 				ueauEndPoint := (*ueauService.IpEndPoints)[0]
 				udmUrl = string(ueauService.Scheme) + "://" + ueauEndPoint.Ipv4Address + ":" + strconv.Itoa(int(ueauEndPoint.Port))
 				//logger.UeAuthPostLog.Infof("AUSF to UDM Mapping: UDM ID %s ue id %s index %d", profile.NfInstanceId, id, nfInstanceIndex)
-				logger.ConsumerLog.Warnln("for Ue: ", id, " for targetNfType ", string(models.NfType_UDM), " NF is: ", udmInstance.Ipv4Addresses)
+				logger.ConsumerLog.Warnln("for Ue: ", id, " nfInstanceIndex: ", nfInstanceIndex, " for targetNfType ", string(models.NfType_UDM), " NF is: ", udmInstance.Ipv4Addresses)
 				break
 			}
 		}
