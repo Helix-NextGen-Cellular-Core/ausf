@@ -44,7 +44,7 @@ func InitAusfContext(context *AUSFContext) {
 	context.SBIPort = factory.AUSF_DEFAULT_PORT_INT                // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			context.RegisterIPv4 = os.Getenv("POD_IP") //context.RegisterIPv4 = sbi.RegisterIPv4
+			context.RegisterIPv4 = os.Getenv("POD_IP")
 		}
 		if sbi.Port != 0 {
 			context.SBIPort = sbi.Port
